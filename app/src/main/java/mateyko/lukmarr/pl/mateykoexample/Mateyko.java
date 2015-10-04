@@ -24,13 +24,12 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 
 import retrofit.RestAdapter;
-import retrofit.RetrofitError;
 import retrofit.client.Response;
 import retrofit.http.GET;
 import retrofit.http.Path;
 import retrofit.mime.TypedInput;
-import rx.Subscriber;
 import rx.android.schedulers.AndroidSchedulers;
+import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 
@@ -62,70 +61,59 @@ public class Mateyko {
         String[] pieces = url.split("/");
         query = pieces[pieces.length - 1];
         endpoint = url.replace("/" + query, "");
-        Log.d(TAG, "endpoint: " + endpoint);
-        Log.d(TAG, "query: " + query);
+        Log.d(TAG, "endpoint: " + endpoint + ", query: " + query);
         return instance;
     }
 
     public void into(@NonNull final ImageView imageView) {
-        Log.d(TAG, "into ");
         RestAdapter adapter = new RestAdapter.Builder().setEndpoint(endpoint).build();
         ImagesAPI api = adapter.create(ImagesAPI.class);
 
         api.getImage(query).map(new Func1<Response, Bitmap>() {
             @Override
             public Bitmap call(Response response) {
-
-                Log.d(TAG, "trying to decode image...");
                 Log.d(TAG, "url = " + response.getUrl());
                 TypedInput input = response.getBody();
-                BufferedInputStream stream;
+                BufferedInputStream stream = null;
                 Bitmap bitmap = null;
                 try {
                     stream = new BufferedInputStream(input.in());
                     bitmap = BitmapFactory.decodeStream(stream);
+                    stream.close();
                 } catch (IOException e) {
-                    Log.e(TAG, "error decoding stream");
+                    Log.e(TAG, "failed to decode stream");
                     e.printStackTrace();
+                    if (stream != null) {
+                        try {
+                            stream.close();
+                        } catch (IOException ex) {
+                            Log.e(TAG, "failed to close stream");
+                            ex.printStackTrace();
+                        }
+                    }
                 }
                 return bitmap;
             }
-        }).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(new Subscriber<Bitmap>() {
-            @Override
-            public void onCompleted() {
-                Log.d(TAG, "onCompleted ");
-                if (!isUnsubscribed())
-                    unsubscribe();
-            }
-
-            @Override
-            public void onError(Throwable e) {
-                Log.e(TAG, "onErrorCompleted ");
-                Log.e(TAG, "caused by " + e.getCause());
-                if (e instanceof RetrofitError)
-                    Log.e(TAG, "url = " + ((RetrofitError) e).getUrl());
-                Log.e(TAG, "message: " + e.getMessage());
-                e.printStackTrace();
-            }
-
-            @Override
-            public void onNext(final Bitmap bitmap) {
-                Log.d(TAG, "onNext ");
-                activity.runOnUiThread(new Runnable() {
+        }).subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Action1<Bitmap>() {
                     @Override
-                    public void run() {
-                        if (bitmap != null) {
-                            Drawable[] layers = new Drawable[]{
-                                    new BitmapDrawable(activity.getResources()),
-                                    new BitmapDrawable(bitmap)};
-                            TransitionDrawable transitionDrawable = new TransitionDrawable(layers);
-                            imageView.setImageDrawable(transitionDrawable);
-                            transitionDrawable.startTransition(FADE_DURATION);
-                        }
+                    public void call(final Bitmap bitmap) {
+                        Log.d(TAG, "onNext, bitmap is " + (bitmap == null ? "null" : "not null"));
+                        activity.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (bitmap != null) {
+                                    Drawable[] layers = new Drawable[]{
+                                            new BitmapDrawable(activity.getResources()),
+                                            new BitmapDrawable(bitmap)};
+                                    TransitionDrawable transitionDrawable = new TransitionDrawable(layers);
+                                    imageView.setImageDrawable(transitionDrawable);
+                                    transitionDrawable.startTransition(FADE_DURATION);
+                                }
+                            }
+                        });
                     }
                 });
-            }
-        });
     }
 
     private interface ImagesAPI {
