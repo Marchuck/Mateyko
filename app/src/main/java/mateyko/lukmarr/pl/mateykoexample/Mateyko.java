@@ -16,6 +16,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.TransitionDrawable;
+import android.support.annotation.NonNull;
 import android.util.Log;
 import android.widget.ImageView;
 
@@ -40,22 +41,24 @@ import rx.schedulers.Schedulers;
  * @since 2015-10-04
  */
 public class Mateyko {
-    private static final int FADE_DURATION = 200;
-    private static Activity activity;
-    private static final Mateyko instance = new Mateyko();
-    private static String endpoint;
-    private static String query;
+
     private static String TAG = Mateyko.class.getSimpleName();
+    private static final Mateyko instance = new Mateyko();
+    private static final int FADE_DURATION = 200;
+
+    private Activity activity;
+    private String endpoint;
+    private String query;
 
     private Mateyko() {
     }
 
-    public static Mateyko with(Activity _context) {
-        activity = _context;
+    public static Mateyko with(@NonNull Activity _context) {
+        instance.activity = _context;
         return instance;
     }
 
-    public Mateyko load(String url) {
+    public Mateyko load(@NonNull String url) {
         String[] pieces = url.split("/");
         query = pieces[pieces.length - 1];
         endpoint = url.replace("/" + query, "");
@@ -64,7 +67,7 @@ public class Mateyko {
         return instance;
     }
 
-    public void into(final ImageView imageView) {
+    public void into(@NonNull final ImageView imageView) {
         Log.d(TAG, "into ");
         RestAdapter adapter = new RestAdapter.Builder().setEndpoint(endpoint).build();
         ImagesAPI api = adapter.create(ImagesAPI.class);
@@ -112,10 +115,9 @@ public class Mateyko {
                     @Override
                     public void run() {
                         if (bitmap != null) {
-                            Drawable[] layers = new Drawable[2];
-                            layers[0] = new BitmapDrawable(activity.getResources());
-                            layers[1] = new BitmapDrawable(bitmap);
-
+                            Drawable[] layers = new Drawable[]{
+                                    new BitmapDrawable(activity.getResources()),
+                                    new BitmapDrawable(bitmap)};
                             TransitionDrawable transitionDrawable = new TransitionDrawable(layers);
                             imageView.setImageDrawable(transitionDrawable);
                             transitionDrawable.startTransition(FADE_DURATION);
