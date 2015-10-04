@@ -13,6 +13,9 @@ package mateyko.lukmarr.pl.mateykoexample;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.TransitionDrawable;
 import android.util.Log;
 import android.widget.ImageView;
 
@@ -32,12 +35,12 @@ import rx.schedulers.Schedulers;
 
 /**
  * @author Lukasz Marczak
- *
+ *         <p/>
  *         Lightweight & simple image loader
- *
  * @since 2015-10-04
  */
 public class Mateyko {
+    private static final int FADE_DURATION = 200;
     private static Activity activity;
     private static final Mateyko instance = new Mateyko();
     private static String endpoint;
@@ -108,8 +111,15 @@ public class Mateyko {
                 activity.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        if (bitmap != null)
-                            imageView.setImageBitmap(bitmap);
+                        if (bitmap != null) {
+                            Drawable[] layers = new Drawable[2];
+                            layers[0] = new BitmapDrawable(activity.getResources());
+                            layers[1] = new BitmapDrawable(bitmap);
+
+                            TransitionDrawable transitionDrawable = new TransitionDrawable(layers);
+                            imageView.setImageDrawable(transitionDrawable);
+                            transitionDrawable.startTransition(FADE_DURATION);
+                        }
                     }
                 });
             }
