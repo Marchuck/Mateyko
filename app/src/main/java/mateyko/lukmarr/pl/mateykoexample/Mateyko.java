@@ -1,30 +1,33 @@
 package mateyko.lukmarr.pl.mateykoexample;
-/** The MIT License
-
-Copyright (c) 2015 Lukasz Marczak
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
- * */
+/**
+ * The MIT License
+ * <p/>
+ * Copyright (c) 2015 Lukasz Marczak
+ * <p/>
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * <p/>
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * <p/>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.TransitionDrawable;
@@ -47,7 +50,6 @@ import rx.schedulers.Schedulers;
 
 /**
  * @author Lukasz Marczak
- *         <p/>
  *         Lightweight & simple image loader
  * @since 2015-10-04
  */
@@ -58,8 +60,9 @@ public class Mateyko {
     private static final int FADE_DURATION = 200;
 
     private Activity activity;
-    private String endpoint;
-    private String query;
+    private String endpoint, query;
+    private int width = 300, height = 300;
+    private boolean resizedEnabled = false;
 
     private Mateyko() {
     }
@@ -77,7 +80,15 @@ public class Mateyko {
         return instance;
     }
 
+    public Mateyko resize(int width, int height) {
+        this.width = width;
+        this.height = height;
+        resizedEnabled = true;
+        return instance;
+    }
+
     public void into(@NonNull final ImageView imageView) {
+
         RestAdapter adapter = new RestAdapter.Builder().setEndpoint(endpoint).build();
         ImagesAPI api = adapter.create(ImagesAPI.class);
 
@@ -90,8 +101,37 @@ public class Mateyko {
                 Bitmap bitmap = null;
                 try {
                     stream = new BufferedInputStream(input.in());
-                    bitmap = BitmapFactory.decodeStream(stream);
-                    stream.close();
+                    if (!resizedEnabled)
+                        bitmap = BitmapFactory.decodeStream(stream);
+                    else {
+                        BitmapFactory.Options options = new BitmapFactory.Options();
+                        options.inJustDecodeBounds = true;
+                        BitmapFactory.decodeStream(stream, null, options);
+                        stream.close();
+                        stream = null;
+                        int inWidth = options.outWidth;
+                        int inHeight = options.outHeight;
+                        // decode full image pre-resized
+                        stream = new BufferedInputStream(input.in());
+                        options = new BitmapFactory.Options();
+                        // calc rought re-size (this is no exact resize)
+                        options.inSampleSize = Math.max(inWidth / width, inHeight / height);
+                        options.inSampleSize = (options.inSampleSize == 0) ? 1 : options.inSampleSize;
+                        Log.d(TAG, "inSampleSize = " + options.inSampleSize);
+                        // decode full image
+                        Bitmap roughBitmap = BitmapFactory.decodeStream(stream, null, options);
+                        stream.close();
+                        // calc exact destination size
+                        Matrix m = new Matrix();
+                        RectF inRect = new RectF(0, 0, roughBitmap.getWidth(), roughBitmap.getHeight());
+                        RectF outRect = new RectF(0, 0, width, height);
+                        m.setRectToRect(inRect, outRect, Matrix.ScaleToFit.CENTER);
+                        float[] values = new float[9];
+                        m.getValues(values);
+                        // resize bitmap
+                        bitmap = Bitmap.createScaledBitmap(roughBitmap, (int) (roughBitmap.getWidth() * values[0]),
+                                (int) (roughBitmap.getHeight() * values[4]), true);
+                    }
                 } catch (IOException e) {
                     Log.e(TAG, "failed to decode stream");
                     e.printStackTrace();
@@ -104,6 +144,7 @@ public class Mateyko {
                         }
                     }
                 }
+                resizedEnabled = false;
                 return bitmap;
             }
         }).subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
