@@ -1,3 +1,5 @@
+[![Android Arsenal](https://img.shields.io/badge/Android%20Arsenal-Mateyko-green.svg?style=flat)](https://android-arsenal.com/details/1/2596)
+
 # Mateyko
 Lightweight image loader based on Retrofit and RxJava
 
