@@ -72,19 +72,26 @@ public class Mateyko {
         return instance;
     }
 
+    public static Mateyko withNewInstance(@NonNull Activity _context) {
+        Mateyko m = new Mateyko();
+        m.activity = _context;
+        return m;
+    }
+
+
     public Mateyko load(@NonNull String url) {
         String[] pieces = url.split("/");
         query = pieces[pieces.length - 1];
         endpoint = url.replace("/" + query, "");
         Log.d(TAG, "endpoint: " + endpoint + ", query: " + query);
-        return instance;
+        return this;
     }
 
     public Mateyko resize(int width, int height) {
         this.width = width;
         this.height = height;
         resizedEnabled = true;
-        return instance;
+        return this;
     }
 
     public void into(@NonNull final ImageView imageView) {
