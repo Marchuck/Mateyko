@@ -1,5 +1,8 @@
 package mateyko.lukmarr.pl.mateykoexample;
 
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -40,8 +43,8 @@ public class MainActivity extends AppCompatActivity {
     private void nextImage() {
         Log.d("MainActivity", "nextImage " + index);
         index = (++index) % images.length;
-        Mateyko.with(this)
-                .load(images[index])
+        Mateyko.with(this).load(images[index])
+                .errorImage(new ColorDrawable(Color.RED))
                 .into(imageView);
     }
 }
